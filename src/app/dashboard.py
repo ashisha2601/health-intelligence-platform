@@ -41,7 +41,11 @@ def load_data():
         df_s = pd.DataFrame()
 
     try:
-        df_n = pd.read_csv('data/clinical_notes.csv')
+        if os.path.exists('data/clinical_notes.csv'):
+            df_n = pd.read_csv('data/clinical_notes.csv')
+        else:
+            # Fallback to small version for schema overview on server
+            df_n = pd.read_csv('data/clinical_notes_small.csv')
     except:
         df_n = pd.DataFrame()
         
