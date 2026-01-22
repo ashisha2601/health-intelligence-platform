@@ -7,8 +7,11 @@ import sys
 import numpy as np
 import importlib
 
-# Add project root to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DATA_DIR = PROJECT_ROOT / "data"
+
 
 from src.models.diabetes_model import DiabetesReadmissionModel
 from src.models.trend_analyzer import TrendAnalyzer

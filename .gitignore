@@ -28,16 +28,15 @@ wheels/
 venv/
 .env
 
-# Large Data Files (Global)
-*.csv
 *.zip
 *.pkl
 *.pt
 *.dcm
 
-# Specific Raw Data Folders
-diabetes+130-us+hospitals+for+years+1999-2008/
-data/
 
 # OS
 .DS_Store
+# Large raw datasets (do not commit)
+data/clinical_notes.csv
+diabetes+130-us+hospitals+for+years+1999-2008/
+
