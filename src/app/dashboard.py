@@ -10,12 +10,15 @@ import importlib
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.append(str(PROJECT_ROOT))
+
 DATA_DIR = PROJECT_ROOT / "data"
 
+from src.models.diabetes_model import DiabetesReadmissionModel
+from src.models.trend_analyzer import TrendAnalyzer
+from src.models.nlp_summarizer import ClinicalSummarizer
 
-from models.diabetes_model import DiabetesReadmissionModel
-from models.trend_analyzer import TrendAnalyzer
-from models.nlp_summarizer import ClinicalSummarizer
 
 
 st.set_page_config(layout="wide", page_title="Health Intelligence Platform")
