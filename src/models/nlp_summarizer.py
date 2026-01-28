@@ -15,19 +15,45 @@ class ClinicalSummarizer:
         """
         self.model_name = model_name
         self.summarizer = None
+        self.model = None
+        self.tokenizer = None
+        self.device = None
         
     def _load_model(self):
         """Lazy load the model pipeline."""
         if self.summarizer is None:
             logger.info(f"Loading summarization model: {self.model_name}...")
-            device = 0 if torch.cuda.is_available() or torch.backends.mps.is_available() else -1
             
-            # Check for MPS (Apple Silicon) specifically
-            if torch.backends.mps.is_available():
-                device = "mps"
+            # Detect best device
+            if torch.cuda.is_available():
+                self.device = 0
+            elif torch.backends.mps.is_available():
+                self.device = "mps"
+            else:
+                self.device = -1 # CPU
             
             try:
-                self.summarizer = pipeline("summarization", model=self.model_name, device=device)
+                from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+                
+                logger.info("Initializing tokenizer and model...")
+                self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+                self.model = AutoModelForSeq2SeqLM.from_pretrained(self.model_name)
+                
+                # Try creating pipeline
+                try:
+                    self.summarizer = pipeline(
+                        "summarization", 
+                        model=self.model, 
+                        tokenizer=self.tokenizer, 
+                        device=self.device
+                    )
+                    logger.info("Pipeline created successfully.")
+                except Exception as pe:
+                    logger.warning(f"Pipeline creation failed: {pe}. Will use direct model generation.")
+                    self.summarizer = "DIRECT_GEN" # Flag for manual inference
+                    if self.device != -1:
+                        self.model = self.model.to(self.device)
+                
                 logger.info("Model loaded successfully.")
             except Exception as e:
                 logger.error(f"Failed to load model: {e}")
@@ -43,16 +69,30 @@ class ClinicalSummarizer:
             return ""
             
         try:
-            # Estimate token count roughly (words * 1.3)
-            # Adjust max_length to be reasonable for the input size to avoid warnings
+            # Estimate token count
             estimated_tokens = int(len(text.split()) * 1.5)
             dynamic_max = min(max_length, max(estimated_tokens, min_length + 10))
-            
-            # Ensure min_length is valid
             dynamic_min = min(min_length, dynamic_max - 1)
             
-            summary = self.summarizer(text, max_length=dynamic_max, min_length=dynamic_min, do_sample=False)
-            return summary[0]['summary_text']
+            if self.summarizer == "DIRECT_GEN":
+                # Manual Generation Fallback
+                inputs = self.tokenizer(text, return_tensors="pt", truncation=True, max_length=1024)
+                if self.device != -1:
+                    inputs = {k: v.to(self.device) for k, v in inputs.items()}
+                
+                summary_ids = self.model.generate(
+                    inputs["input_ids"], 
+                    max_length=dynamic_max, 
+                    min_length=dynamic_min, 
+                    length_penalty=2.0, 
+                    num_beams=4, 
+                    early_stopping=True
+                )
+                return self.tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+            else:
+                # Standard Pipeline
+                summary = self.summarizer(text, max_length=dynamic_max, min_length=dynamic_min, do_sample=False)
+                return summary[0]['summary_text']
         except Exception as e:
             logger.error(f"Error summarizing text: {e}")
             return text # Return original if failure

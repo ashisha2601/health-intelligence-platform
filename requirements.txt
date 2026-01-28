@@ -12,8 +12,8 @@ seaborn>=0.12.0
 # Machine Learning
 scikit-learn>=1.2.0
 
-# Explainability
-shap>=0.41.0
+# Explainability (Removed shap for Python 3.13 compatibility)
+# shap>=0.41.0 
 
 # Jupyter
 jupyter>=1.0.0
@@ -25,6 +25,6 @@ streamlit>=1.25.0
 plotly>=5.14.0
 
 # NLP
-transformers>=4.30.0
-torch>=2.0.0
-datasets>=2.14.0
+transformers>=4.40.0
+torch>=2.2.0
+datasets>=2.18.0

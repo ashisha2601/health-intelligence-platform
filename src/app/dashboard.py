@@ -40,12 +40,16 @@ def load_data():
     except:
         df_s = pd.DataFrame()
 
+    # Memory Optimization: clinical_notes.csv is 348MB. 
+    # We'll use the small version by default to stay under 1GB RAM limits.
     try:
-        if os.path.exists('data/clinical_notes.csv'):
-            df_n = pd.read_csv('data/clinical_notes.csv')
-        else:
-            # Fallback to small version for schema overview on server
+        if os.path.exists('data/clinical_notes_small.csv'):
             df_n = pd.read_csv('data/clinical_notes_small.csv')
+        elif os.path.exists('data/clinical_notes.csv'):
+            # Load only a subset if only the large file exists
+            df_n = pd.read_csv('data/clinical_notes.csv', nrows=1000)
+        else:
+            df_n = pd.DataFrame()
     except:
         df_n = pd.DataFrame()
         
@@ -223,7 +227,7 @@ def main():
         st.markdown("---")
         st.subheader("Patient Deivation: Comparison to Hospital Average")
         metrics = ['num_medications', 'num_lab_procedures', 'time_in_hospital', 'number_diagnoses']
-        p_vals = last_enc[metrics].fillna(0).values.flatten().tolist()
+        p_vals = last_enc[metrics].infer_objects(copy=False).fillna(0).values.flatten().tolist()
         pop_mean = df_clinical[metrics].mean().values.flatten().tolist() if df_clinical is not None else [16, 43, 4, 7]
         
         comp_data = []

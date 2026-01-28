@@ -62,6 +62,10 @@ healthcare-multimodal/
 9.  **File Uploader**: Added a sidebar widget allowing users to assume control by uploading their own CSV datasets (Clinical or Genomic), effectively making the platform a "Bring Your Own Data" solution.
 10. **Data Labeling**: Enhanced all charts with explicit count/percentage labels for better interpretability.
 
+## 🌐 Live Deployment
+The platform is live and can be accessed at:
+[health-intelligence-platform-zjajfyvepkfwwey7keapppx.streamlit.app](https://health-intelligence-platform-zjajfyvepkfwwey7keapppx.streamlit.app/)
+
 ## 🏃‍♂️ How to Run
 
 1.  **Install Dependencies**:
@@ -77,4 +81,4 @@ healthcare-multimodal/
 ## 🔮 Future Roadmap
 *   **Live Inference Endpoint**: Deploy models as REST APIs (FastAPI) for real-time integration.
 *   **FHIR Integration**: Standardize data ingestion using HL7 FHIR resources.
-*   **Cloud Deployment**: Dockerize the application for deployment on AWS/Azure.
+*   **Cloud Deployment**: [DONE] Successfully deployed to Streamlit Cloud.
