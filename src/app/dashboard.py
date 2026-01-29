@@ -261,8 +261,15 @@ def main():
         
         if not df_genomic.empty:
             pid_int = int(str(sel_pat).replace('-', ''))
-            idx = pid_int % len(df_genomic)
-            gene = df_genomic.iloc[idx]
+            
+            # Weighted Selection: Prioritize high-significance genes for 40% of records in the demo
+            sig_pool = df_genomic[(df_genomic['is_asd'] == 1) | (df_genomic['gene-score'] > 0)]
+            if not sig_pool.empty and pid_int % 10 < 4:
+                idx = pid_int % len(sig_pool)
+                gene = sig_pool.iloc[idx]
+            else:
+                idx = pid_int % len(df_genomic)
+                gene = df_genomic.iloc[idx]
             
             c1, c2 = st.columns([1, 1])
             with c1:
@@ -278,7 +285,13 @@ def main():
             with c2:
                 st.subheader("Data Confidence")
                 st.empty()
-                st.metric("Confidence Score", f"{gene.get('gene-score', 0.0):.2f}", help="Indicates the reliability of this genetic link.")
+                # Dynamic Confidence: Calculated from model score + volume of evidence (reports)
+                reports = gene.get('number-of-reports', 0)
+                reports_score = min(reports / 20.0, 0.5) if reports > 0 else 0.15 # Baseline confidence
+                base_risk = gene.get('gene-score', 0.0) / 3.0 # Normalize 0-3 range
+                
+                conf_score = max(base_risk, reports_score)
+                st.metric("Confidence Score", f"{conf_score:.2f}", help="Based on the volume of clinical reports and variant severity.")
 
             st.markdown("---")
             st.subheader("Population Context")
