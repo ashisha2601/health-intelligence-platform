@@ -362,9 +362,12 @@ def main():
         def clean_val(v): return str(v) if pd.notnull(v) and str(v).lower() not in ['nan','?'] else "Unknown"
         diag = clean_val(last_enc['diag_1'])
         meds = clean_val(last_enc['num_medications'])
+        a1c = clean_val(last_enc.get('A1Cresult', 'Unknown'))
+        disposition = clean_val(last_enc.get('discharge_disposition_id', 'Unknown'))
+        
         note = (f"Patient {sel_pat} ({last_enc['age']}) presented with {diag}. "
-                f"Currently on {meds} medications. Lab results indicate A1C of {last_enc['A1Cresult']}. "
-                f"Discharge disposition: {last_enc['discharge_disposition_id']}.")
+                f"Currently on {meds} medications. Lab results indicate A1C of {a1c}. "
+                f"Discharge disposition: {disposition}.")
         
         st.subheader("Generated Clinical Note")
         note_edit = st.text_area("Edit Note before Analysis", note, height=150)
