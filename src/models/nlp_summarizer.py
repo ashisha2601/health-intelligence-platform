@@ -34,37 +34,38 @@ class ClinicalSummarizer:
             
             try:
                 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-                
-                logger.info("Initializing tokenizer and model with increased timeout...")
-                # Increase timeout for cloud environments with slow connections
                 hub_kwargs = {"timeout": 300} 
                 
-                self.tokenizer = AutoTokenizer.from_pretrained(
-                    self.model_name, 
-                    **hub_kwargs
-                )
+                logger.info("Initializing tokenizer...")
+                try:
+                    self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, **hub_kwargs)
+                except Exception as te:
+                    logger.warning(f"Tokenizer load failed for {self.model_name}: {te}. Trying t5-small tokenizer...")
+                    self.model_name = "t5-small"
+                    self.tokenizer = AutoTokenizer.from_pretrained("t5-small", **hub_kwargs)
                 
                 # Memory optimization: use float16 if not on CPU to save 50% RAM
                 dtype_to_use = torch.float16 if self.device != -1 else torch.float32
                 
+                logger.info(f"Initializing model {self.model_name}...")
                 try:
-                    self.model = AutoModelForSeq2SeqLM.from_pretrained(
-                        self.model_name, 
-                        dtype=dtype_to_use, # Use 'dtype' instead of 'torch_dtype'
-                        low_cpu_mem_usage=True,
-                        **hub_kwargs
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to load {self.model_name}: {e}. Trying smaller fallback t5-small...")
-                    self.model_name = "t5-small"
                     self.model = AutoModelForSeq2SeqLM.from_pretrained(
                         self.model_name, 
                         dtype=dtype_to_use, 
                         low_cpu_mem_usage=True,
                         **hub_kwargs
                     )
+                except Exception as me:
+                    logger.warning(f"Model load failed for {self.model_name}: {me}. Trying t5-small...")
+                    self.model_name = "t5-small"
+                    self.model = AutoModelForSeq2SeqLM.from_pretrained(
+                        "t5-small", 
+                        dtype=dtype_to_use, 
+                        low_cpu_mem_usage=True,
+                        **hub_kwargs
+                    )
                 
-                # Try creating pipeline
+                # Create pipeline
                 try:
                     self.summarizer = pipeline(
                         "summarization", 
@@ -72,17 +73,16 @@ class ClinicalSummarizer:
                         tokenizer=self.tokenizer, 
                         device=self.device
                     )
-                    logger.info("Pipeline created successfully.")
                 except Exception as pe:
-                    logger.warning(f"Pipeline creation failed: {pe}. Will use direct model generation.")
-                    self.summarizer = "DIRECT_GEN" # Flag for manual inference
+                    logger.warning(f"Pipeline creation failed: {pe}. Using direct model generation.")
+                    self.summarizer = "DIRECT_GEN"
                     if self.device != -1:
                         self.model = self.model.to(self.device)
                 
-                logger.info(f"Model {self.model_name} loaded successfully.")
+                logger.info("NLP initialization complete.")
             except Exception as e:
-                logger.error(f"Critical error loading any model: {e}")
-                self.summarizer = "MOCK" # Final fallback to prevent app crash
+                logger.error(f"FATAL ERROR in NLP initialization: {e}. Falling back to MOCK mode.")
+                self.summarizer = "MOCK"
 
     def summarize(self, text, max_length=150, min_length=40):
         """
