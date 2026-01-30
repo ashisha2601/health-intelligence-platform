@@ -37,7 +37,14 @@ class ClinicalSummarizer:
                 
                 logger.info("Initializing tokenizer and model...")
                 self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-                self.model = AutoModelForSeq2SeqLM.from_pretrained(self.model_name)
+                
+                # Memory optimization: use float16 if not on CPU to save 50% RAM
+                dtype = torch.float16 if self.device != -1 else torch.float32
+                self.model = AutoModelForSeq2SeqLM.from_pretrained(
+                    self.model_name, 
+                    torch_dtype=dtype,
+                    low_cpu_mem_usage=True
+                )
                 
                 # Try creating pipeline
                 try:

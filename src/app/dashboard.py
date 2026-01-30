@@ -5,8 +5,7 @@ import plotly.graph_objects as go
 import os
 import sys
 import numpy as np
-import importlib
-
+import gc
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -17,11 +16,32 @@ DATA_DIR = PROJECT_ROOT / "data"
 
 from src.models.diabetes_model import DiabetesReadmissionModel
 from src.models.trend_analyzer import TrendAnalyzer
-from src.models.nlp_summarizer import ClinicalSummarizer
+
+# We will lazy-import ClinicalSummarizer only if needed to save RAM
 
 
 
-st.set_page_config(layout="wide", page_title="Health Intelligence Platform")
+
+@st.cache_resource
+def load_diabetes_model():
+    dm = DiabetesReadmissionModel()
+    try:
+        if os.path.exists('models/diabetes_model.pkl'):
+            dm.load('models/diabetes_model.pkl')
+    except:
+        pass
+    return dm
+
+@st.cache_resource
+def load_trend_analyzer():
+    return TrendAnalyzer()
+
+@st.cache_resource
+def load_nlp_model():
+    """Lazy load the heavy Transformer model only when needed."""
+    from src.models.nlp_summarizer import ClinicalSummarizer
+    # By default, load in float16 to save ~50% RAM if supported
+    return ClinicalSummarizer()
 
 @st.cache_data
 def load_data():
@@ -54,6 +74,7 @@ def load_data():
     except:
         df_n = pd.DataFrame()
         
+    gc.collect() # Force cleanup before returning
     return df_c, df_g, df_s, df_n
 
 def generate_vitals(patient_id, risk_score):
@@ -83,25 +104,6 @@ def generate_vitals(patient_id, risk_score):
         'Chol_Status': 'High' if chol > 200 else 'Normal'
     }
 
-@st.cache_resource
-def load_models():
-    dm = DiabetesReadmissionModel()
-    try:
-        if os.path.exists('models/diabetes_model.pkl'):
-            dm.load('models/diabetes_model.pkl')
-        else:
-            df_c, _, _ = load_data()
-            if df_c is not None:
-                df_p = dm.preprocess(df_c)
-                df_f = dm.feature_engineering(df_p)
-                X, _, y, _ = dm.prepare_data(df_f)
-                dm.train(X, y)
-    except:
-        pass
-        
-    ta = TrendAnalyzer()
-    cs = ClinicalSummarizer()
-    return dm, ta, cs
 
 def display_schema(df, name):
     st.subheader(f"{name} Schema")
@@ -118,7 +120,9 @@ def main():
     st.title("🏥 Health Intelligence Platform")
     
     df_clinical, df_genomic, df_synthea, df_notes = load_data()
-    diabetes_model, trend_analyzer, summarizer = load_models()
+    diabetes_model = load_diabetes_model()
+    trend_analyzer = load_trend_analyzer()
+    # Note: summarizer is lazy-loaded inside the NLP tab
     
     if df_clinical is None:
         st.error("Clinical Data not found. Please check paths.")
@@ -373,8 +377,9 @@ def main():
         note_edit = st.text_area("Edit Note before Analysis", note, height=150)
         
         if st.button("Run AI Summarization"):
-            with st.spinner("Summarizing..."):
-                summ = summarizer.summarize(note_edit)
+            with st.spinner("Loading AI engine and summarizing..."):
+                summarizer_model = load_nlp_model()
+                summ = summarizer_model.summarize(note_edit)
             st.success("Summary Generated")
             st.markdown(f"> {summ}")
             
