@@ -35,16 +35,34 @@ class ClinicalSummarizer:
             try:
                 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
                 
-                logger.info("Initializing tokenizer and model...")
-                self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+                logger.info("Initializing tokenizer and model with increased timeout...")
+                # Increase timeout for cloud environments with slow connections
+                hub_kwargs = {"timeout": 300} 
+                
+                self.tokenizer = AutoTokenizer.from_pretrained(
+                    self.model_name, 
+                    **hub_kwargs
+                )
                 
                 # Memory optimization: use float16 if not on CPU to save 50% RAM
-                dtype = torch.float16 if self.device != -1 else torch.float32
-                self.model = AutoModelForSeq2SeqLM.from_pretrained(
-                    self.model_name, 
-                    torch_dtype=dtype,
-                    low_cpu_mem_usage=True
-                )
+                dtype_to_use = torch.float16 if self.device != -1 else torch.float32
+                
+                try:
+                    self.model = AutoModelForSeq2SeqLM.from_pretrained(
+                        self.model_name, 
+                        dtype=dtype_to_use, # Use 'dtype' instead of 'torch_dtype'
+                        low_cpu_mem_usage=True,
+                        **hub_kwargs
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to load {self.model_name}: {e}. Trying smaller fallback t5-small...")
+                    self.model_name = "t5-small"
+                    self.model = AutoModelForSeq2SeqLM.from_pretrained(
+                        self.model_name, 
+                        dtype=dtype_to_use, 
+                        low_cpu_mem_usage=True,
+                        **hub_kwargs
+                    )
                 
                 # Try creating pipeline
                 try:
@@ -61,10 +79,10 @@ class ClinicalSummarizer:
                     if self.device != -1:
                         self.model = self.model.to(self.device)
                 
-                logger.info("Model loaded successfully.")
+                logger.info(f"Model {self.model_name} loaded successfully.")
             except Exception as e:
-                logger.error(f"Failed to load model: {e}")
-                raise
+                logger.error(f"Critical error loading any model: {e}")
+                self.summarizer = "MOCK" # Final fallback to prevent app crash
 
     def summarize(self, text, max_length=150, min_length=40):
         """
@@ -80,6 +98,9 @@ class ClinicalSummarizer:
             estimated_tokens = int(len(text.split()) * 1.5)
             dynamic_max = min(max_length, max(estimated_tokens, min_length + 10))
             dynamic_min = min(min_length, dynamic_max - 1)
+            
+            if self.summarizer == "MOCK":
+                return f"SUMMARY PREVIEW: {text[:100]}... [Note: AI model failed to download due to network timeout. This is a placeholder.]"
             
             if self.summarizer == "DIRECT_GEN":
                 # Manual Generation Fallback
@@ -98,7 +119,9 @@ class ClinicalSummarizer:
                 return self.tokenizer.decode(summary_ids[0], skip_special_tokens=True)
             else:
                 # Standard Pipeline
-                summary = self.summarizer(text, max_length=dynamic_max, min_length=dynamic_min, do_sample=False)
+                # T5 needs a prefix
+                prefix = "summarize: " if "t5" in self.model_name.lower() else ""
+                summary = self.summarizer(prefix + text, max_length=dynamic_max, min_length=dynamic_min, do_sample=False)
                 return summary[0]['summary_text']
         except Exception as e:
             logger.error(f"Error summarizing text: {e}")
