@@ -36,6 +36,7 @@ def load_data():
         df_g = pd.DataFrame()
 
     try:
+        
         df_s = pd.read_csv('data/synthea_ehr_data.csv')
     except:
         df_s = pd.DataFrame()
@@ -207,7 +208,34 @@ def main():
                 color = "#d62728" if risk > 0.4 else "#2ca02c" # Keep traffic light logic but maybe slightly softer red/green
                 label = "High Risk" if risk > 0.4 else "Low Risk"
                 st.markdown(f"**Readmission Risk:** <span style='color:{color}'>{label}</span>", unsafe_allow_html=True)
-                st.progress(risk)
+                
+                # Custom Risk Gauge for better interpretability
+                fig_risk = go.Figure(go.Indicator(
+                    mode = "gauge+number",
+                    value = risk * 100,
+                    number = {'suffix': "%", 'font': {'size': 24}},
+                    domain = {'x': [0, 1], 'y': [0, 1]},
+                    gauge = {
+                        'axis': {'range': [None, 100], 'tickwidth': 1},
+                        'bar': {'color': color},
+                        'bgcolor': "white",
+                        'borderwidth': 2,
+                        'bordercolor': "#dddddd",
+                        'steps': [
+                            {'range': [0, 33], 'color': 'rgba(44, 160, 44, 0.1)'},
+                            {'range': [33, 67], 'color': 'rgba(255, 187, 120, 0.1)'},
+                            {'range': [67, 100], 'color': 'rgba(214, 39, 40, 0.1)'}
+                        ],
+                        'threshold': {
+                            'line': {'color': "red", 'width': 3},
+                            'thickness': 0.75,
+                            'value': 40 # Our logic threshold for "High Risk"
+                        }
+                    }
+                ))
+                fig_risk.update_layout(height=180, margin=dict(l=20, r=20, t=10, b=10))
+                st.plotly_chart(fig_risk, use_container_width=True)
+
                 with st.expander("How was this calculated?"):
                     st.write(f"Method: {method}")
                     st.write(f"Score: {risk:.2f}")
