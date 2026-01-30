@@ -384,19 +384,31 @@ def main():
             st.markdown(f"> {summ}")
             
             st.subheader("Efficiency Impact: Time Saved")
+            
+            # Calculate dynamic metrics
+            words_orig = len(note_edit.split())
+            words_summ = len(summ.split())
+            condensation_val = max(0, min(100, (1 - (words_summ / words_orig)) * 100)) if words_orig > 0 else 0
+            
             c1, c2 = st.columns(2)
             with c1:
                 # Gauge
-                fig_g = go.Figure(go.Indicator(mode="gauge+number", value=35, title={'text':"Content Condensed (%)"}))
+                fig_g = go.Figure(go.Indicator(
+                    mode="gauge+number", 
+                    value=condensation_val, 
+                    title={'text':"Content Condensed (%)"},
+                    gauge={'axis': {'range': [0, 100]}, 'bar': {'color': "#2ca02c"}}
+                ))
+                fig_g.update_layout(height=300)
                 st.plotly_chart(fig_g, use_container_width=True)
             with c2:
                 # Bar
-                pdf = pd.DataFrame({'Type':['Original Note','AI Summary'], 'Words':[len(note_edit.split()), len(summ.split())]})
+                pdf = pd.DataFrame({'Type':['Original Note','AI Summary'], 'Words':[words_orig, words_summ]})
                 fig_p = px.bar(pdf, x='Type', y='Words', text='Words', 
                                title="Reading Load Reduced", 
                                color='Type',
                                color_discrete_sequence=['#aec7e8', '#98df8a'])
-                fig_p.update_layout(showlegend=False)
+                fig_p.update_layout(showlegend=False, height=300)
                 fig_p.update_traces(textposition='outside')
                 st.plotly_chart(fig_p, use_container_width=True)
 
