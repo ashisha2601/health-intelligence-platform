@@ -477,24 +477,6 @@ def main():
                  fig_b.update_traces(textposition='outside')
                  st.plotly_chart(fig_b, use_container_width=True)
             
-            # 1. Business-Friendly: Risk Range Bar (Replaces Box Plot)
-            if not df_genomic.empty and 'gene-score' in df_genomic.columns and 'genetic-category' in df_genomic.columns:
-                 st.markdown("---")
-                 st.subheader("Risk Score Ranges")
-                 # Calculate Min/Max for each category
-                 stats = df_genomic.groupby('genetic-category')['gene-score'].agg(['min','max','mean']).reset_index()
-                 stats = stats.sort_values('mean')
-                 
-                 # Using a floating bar chart (Timeline style but for numbers) is complex in simple plotly express. 
-                 # Simplest business view: Just show the MAX risk observed per category.
-                 
-                 fig_box = px.bar(stats, y='genetic-category', x='max', 
-                                  title="Maximum Risk Score Observed by Category",
-                                  orientation='h', text_auto='.1f',
-                                  labels={'max': 'Max Risk Score'},
-                                  color='max', color_continuous_scale='Burgyl')
-                 fig_box.update_traces(textposition='outside')
-                 st.plotly_chart(fig_box, use_container_width=True)
 
             # 2. Simplified Bar Chart (Replacing complex Sunburst)
             if not df_genomic.empty and 'genetic-category' in df_genomic.columns:
@@ -547,30 +529,6 @@ def main():
                  fig_hist.update_layout(bargap=0.1)
                  st.plotly_chart(fig_hist, use_container_width=True)
 
-                 # 3. Business-Friendly: Conciseness Distribution (Histogram)
-                 if 'summary' in df_notes.columns:
-                     df_notes['SummaryCount'] = df_notes['summary'].astype(str).str.split().str.len()
-                     # Filter out empty notes to avoid ZeroDivision
-                     df_clean = df_notes[df_notes['WordCount'] > 0].copy()
-                     df_clean['CompressionPct'] = (df_clean['SummaryCount'] / df_clean['WordCount']) * 100
-                     
-                     avg_comp = df_clean['CompressionPct'].mean()
-                     
-                     fig_biz = px.histogram(df_clean, x='CompressionPct', nbins=30,
-                                           title="Conciseness Analysis: How short are the summaries?",
-                                           labels={'CompressionPct': 'Summary Size (% of Original Note)'},
-                                           color_discrete_sequence=['#9edae5'],
-                                           text_auto=True)
-                     
-                     # Add average line for business context
-                     fig_biz.add_vline(x=avg_comp, line_dash="dash", line_color="red", 
-                                       annotation_text=f"Average: {avg_comp:.1f}%", 
-                                       annotation_position="top right")
-                                       
-                     fig_biz.update_layout(xaxis_title="Summary Size (% of Original Note)", 
-                                           yaxis_title="Number of Notes",
-                                           bargap=0.1)
-                     st.plotly_chart(fig_biz, use_container_width=True)
 
             # 4. Business-Friendly: Entity Breakdown (Donut Chart)
             st.markdown("---")
