@@ -155,8 +155,18 @@ def main():
     sorted_pats = pat_counts.index.tolist()
     sel_pat = st.sidebar.selectbox("Select Patient ID", sorted_pats[:100])
     
+    # Trend-Aware Recommendation Logic
+    has_history = pat_counts[pat_counts >= 2].index.tolist()
     if pat_counts[sel_pat] < 2:
-        st.sidebar.info(f"Tip: Patient {sel_pat} has only 1 visit. Try {sorted_pats[0]} to see trends.")
+        if has_history:
+            # Suggest the first patient with actual history (that isn't the currently selected one)
+            rec_pat = has_history[0] if has_history[0] != sel_pat else (has_history[1] if len(has_history) > 1 else None)
+            if rec_pat:
+                st.sidebar.info(f"💡 Tip: Patient {sel_pat} has only 1 visit. Select Patient {rec_pat} to view longitudinal trends.")
+            else:
+                st.sidebar.info(f"💡 Tip: Patient {sel_pat} has only 1 visit. No others with multi-visit history found in this sample.")
+        else:
+            st.sidebar.warning("⚠️ Note: All patients in this dataset have only 1 visit. Trend analysis requires at least 2 visits per patient.")
 
     pat_hist = df_clinical[df_clinical['patient_nbr'] == sel_pat].sort_values('encounter_id')
     last_enc = pat_hist.iloc[-1]
